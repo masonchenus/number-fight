@@ -1,0 +1,1022 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big Int Field: Dummy Decoys</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@800&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #040404;
+            font-family: 'JetBrains Mono', monospace;
+            color: white;
+            user-select: none;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 0;
+            cursor: crosshair;
+        }
+
+        .ui-layer {
+            position: absolute;
+            z-index: 10;
+            pointer-events: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .pointer-events-auto {
+            pointer-events: auto;
+        }
+
+        .glow-text {
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 6px 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: white;
+        }
+
+        .btn-ai {
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            color: #d8b4fe;
+        }
+
+        .btn-ai:hover {
+            background: rgba(168, 85, 247, 0.3);
+            border-color: #a855f7;
+        }
+
+        input {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #4ade80;
+            padding: 4px 8px;
+            font-family: inherit;
+            font-size: 0.8rem;
+            width: 60px;
+            outline: none;
+        }
+
+        #minimap-container {
+            width: 180px;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: absolute;
+            right: 24px;
+            bottom: 120px;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        #graph-container {
+            width: 200px;
+            height: 80px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: absolute;
+            left: 24px;
+            bottom: 120px;
+            border-radius: 4px;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #4ade80;
+            cursor: pointer;
+            margin-top: -4px;
+        }
+
+        .collapsed {
+            max-height: 40px !important;
+            overflow: hidden;
+        }
+
+        #toggle-panel {
+            transition: transform 0.3s ease;
+        }
+
+        .rotated {
+            transform: rotate(180deg);
+        }
+
+        #ai-log {
+            background: rgba(0, 0, 0, 0.85);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 10px;
+            padding: 12px;
+            border-radius: 4px;
+            pointer-events: auto;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="ui-layer flex flex-col justify-between p-6">
+        <div class="flex justify-between items-start">
+            <div>
+                <h1 class="text-3xl font-black tracking-tighter glow-text opacity-90">BIG INT FIELD</h1>
+                <p class="text-[10px] text-gray-500 mt-1 uppercase tracking-[0.3em]">HAPPY VS UNHAPPY // DECOY DUMMIES
+                </p>
+                <div id="ai-status"
+                    class="text-[9px] text-purple-400 mt-2 uppercase tracking-widest hidden animate-pulse">✨ AI
+                    Analyzing...</div>
+            </div>
+
+            <div id="master-panel"
+                class="pointer-events-auto bg-black/80 backdrop-blur-xl border border-white/5 p-4 rounded flex flex-col gap-3 w-72 transition-all duration-300 ease-in-out">
+                <div class="flex justify-between items-center border-b border-white/10 pb-2 cursor-pointer"
+                    onclick="toggleMasterPanel()">
+                    <div class="text-[9px] text-gray-500 uppercase tracking-widest font-bold">Command Center</div>
+                    <div id="toggle-panel" class="text-[10px] text-white/50">▼</div>
+                </div>
+
+                <div id="panel-content" class="flex flex-col gap-3 transition-opacity duration-300">
+                    <div class="flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <label class="text-[8px] text-gray-400">RANDOM MAX</label>
+                            <input type="text" id="gen-val" value="2000000">
+                        </div>
+
+                        <div class="flex flex-col gap-1 border-t border-white/5 pt-2">
+                            <label class="text-[8px] text-yellow-500">PRECISION SUMMON</label>
+                            <div class="flex gap-1">
+                                <input type="text" id="exact-val" placeholder="Value"
+                                    class="border-yellow-500/30 text-yellow-400 flex-1">
+                                <input type="number" id="exact-qty" value="1" min="1" max="50"
+                                    class="w-12 border-yellow-500/30 text-yellow-400">
+                            </div>
+                            <button id="spawn-exact-btn"
+                                class="btn bg-yellow-500/10 border-yellow-500/30 text-yellow-400 py-1">SUMMON</button>
+                        </div>
+
+                        <div class="flex flex-col gap-1 mt-1 border-t border-white/5 pt-2">
+                            <div class="flex justify-between items-center">
+                                <label class="text-[8px] text-gray-400">AUTO SPAWN</label>
+                                <span id="rate-display" class="text-[10px] text-green-400">10/s</span>
+                            </div>
+                            <input type="range" id="spawn-rate-slider" min="0" max="100" value="10">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="spawn-cyclic-btn"
+                            class="btn bg-amber-500/10 border-amber-500/30 text-amber-400">CYCLIC (EVEN)</button>
+                        <button id="spawn-resistance-btn"
+                            class="btn bg-indigo-500/10 border-indigo-500/30 text-indigo-400">BIG BOSS</button>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 border-t border-white/10 pt-2">
+                        <button id="dummy-even-btn" class="btn border-cyan-500/30 text-cyan-400 text-[8px]">EVEN
+                            DUMMY</button>
+                        <button id="dummy-odd-btn" class="btn border-fuchsia-500/30 text-fuchsia-400 text-[8px]">ODD
+                            DUMMY</button>
+                    </div>
+
+                    <div class="flex flex-col gap-2 pt-2 border-t border-white/10">
+                        <button id="ai-analyze-btn" class="btn btn-ai w-full text-[9px]">✨ TACTICAL ANALYSIS</button>
+                        <div id="ai-log" class="hidden">
+                            <div id="ai-log-content" class="text-purple-200 mb-3 leading-relaxed">System Ready.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-6 text-right bg-black/60 backdrop-blur-lg p-4 border border-white/5 rounded">
+                <div>
+                    <div class="text-cyan-400 text-2xl font-black" id="score-even">0</div>
+                    <div class="text-[8px] text-gray-500 uppercase tracking-widest">Evens</div>
+                </div>
+                <div>
+                    <div class="text-fuchsia-500 text-2xl font-black" id="score-odd">0</div>
+                    <div class="text-[8px] text-gray-500 uppercase tracking-widest">Odds</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="graph-container" class="pointer-events-none">
+            <canvas id="graph-canvas"></canvas>
+        </div>
+
+        <div id="minimap-container" class="pointer-events-none">
+            <canvas id="minimap-canvas"></canvas>
+        </div>
+
+        <div class="flex justify-between items-end pointer-events-auto">
+            <div class="max-w-md text-[9px] text-gray-500">
+                <p>Hazard: <span class="text-purple-400">Multiplier units clone, then original conducts field mines (<
+                            20).</span>
+                </p>
+                <p>Tactics: <span class="text-cyan-400">Dummies distract the opposing team.</span></p>
+            </div>
+            <div class="text-right flex flex-col gap-1">
+                <button id="reset-btn" class="btn pointer-events-auto">PURGE FIELD</button>
+                <div class="text-[10px] text-gray-500 font-mono" id="entity-counter">0 UNITS</div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="battlefield"></canvas>
+
+    <script>
+        const apiKey = "";
+        const canvas = document.getElementById('battlefield');
+        const ctx = canvas.getContext('2d');
+        const mCanvas = document.getElementById('minimap-canvas');
+        const mCtx = mCanvas.getContext('2d');
+        const gCanvas = document.getElementById('graph-canvas');
+        const gCtx = gCanvas.getContext('2d');
+
+        const CONFIG = {
+            maxEntities: 2200,
+            fixedRadius: 22,
+            worldSize: 6000,
+            colors: { even: '#06b6d4', odd: '#d946ef', prime: '#4ade80', resistance: '#6366f1', projectile: '#f87171', cyclic: '#fbbf24', supernova: '#ffffff', corpse: '#444444', hazard: '#a855f7' },
+            breedChance: 0.8,
+            breedCooldown: 120,
+            friction: 0.94,
+            multipleInterval: 500
+        };
+
+        const CYCLIC_NUMS = { "142857": 7n, "0588235294117647": 17n, "052631578947368421": 19n };
+
+        let width, height;
+        let entities = [];
+        let particles = [];
+        let projectiles = [];
+        let hazards = [];
+        let corpses = [];
+        let frame = 0;
+        let lastTime = performance.now();
+        let spawnAccumulator = 0;
+        let controlledUnit = null;
+        let popHistory = { even: [], odd: [] };
+
+        let camera = { x: 3000, y: 3000, zoom: 0.8, isDragging: false, lastMouseX: 0, lastMouseY: 0 };
+        const keys = { w: false, a: false, s: false, d: false };
+        window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+        window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
+        async function callGemini(prompt, systemPrompt = "") {
+            document.getElementById('ai-status').classList.remove('hidden');
+            let retries = 0;
+            while (retries < 5) {
+                try {
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: systemPrompt }] }
+                    };
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+                    });
+                    const data = await response.json();
+                    document.getElementById('ai-status').classList.add('hidden');
+                    return data.candidates?.[0]?.content?.parts?.[0]?.text;
+                } catch (e) { retries++; await new Promise(r => setTimeout(r, Math.pow(2, retries) * 1000)); }
+            }
+            document.getElementById('ai-status').classList.add('hidden');
+            return null;
+        }
+
+        async function analyzeBattle() {
+            const ev = entities.filter(e => e.team === 'even').length, od = entities.filter(e => e.team === 'odd').length;
+            const log = document.getElementById('ai-log');
+            const content = document.getElementById('ai-log-content');
+            log.classList.remove('hidden');
+            content.innerText = "Analyzing distraction sub-routines...";
+            const result = await callGemini(`Evens ${ev}, Odds ${od}. Hazards: ${hazards.length}. Dummies are on the field.`, "Describe the tactical confusion caused by teams using dummy decoys to manipulate enemy pathing and targeting.");
+            if (result) { content.innerText = result; }
+        }
+
+        function isPrime(n) {
+            if (n <= 1n) return false;
+            if (n <= 3n) return true;
+            if (n % 2n === 0n || n % 3n === 0n) return false;
+            for (let i = 5n; i * i <= n; i += 6n) if (n % i === 0n || n % (i + 2n) === 0n) return false;
+            return true;
+        }
+
+        function isHappy(n) {
+            let seen = new Set();
+            let current = n;
+            while (current !== 1n && !seen.has(current)) {
+                seen.add(current);
+                let sum = 0n;
+                let s = current.toString();
+                for (let char of s) {
+                    let d = BigInt(char);
+                    sum += d * d;
+                }
+                current = sum;
+            }
+            return current === 1n;
+        }
+
+        function finiteNumberFromBigInt(x) {
+            const num = Number(x);
+            return Number.isFinite(num) ? num : null;
+        }
+
+        const TRAITS = {
+            isFibonacci: (n) => {
+                const isSquare = (x) => { 
+                    if (x < 0n) return false;
+                    const num = finiteNumberFromBigInt(x);
+                    if (num === null) return false;
+                    let s = BigInt(Math.floor(Math.sqrt(num))); 
+                    return s * s === x || (s + 1n) * (s + 1n) === x || (s - 1n) * (s - 1n) === x; 
+                };
+                let n2 = n * n;
+                return isSquare(5n * n2 + 4n) || isSquare(5n * n2 - 4n);
+            },
+            isPerfect: (n) => {
+                if (n < 6n) return false;
+                let sum = 1n;
+                for (let i = 2n; i * i <= n; i++) {
+                    if (n % i === 0n) {
+                        sum += i;
+                        if (i * i !== n) sum += n / i;
+                    }
+                }
+                return sum === n;
+            },
+            isSquare: (n) => { const num = finiteNumberFromBigInt(n); if (num === null || num < 0) return false; let s = BigInt(Math.round(Math.sqrt(num))); return s * s === n; },
+            isCube: (n) => { const num = finiteNumberFromBigInt(n); if (num === null || num < 0) return false; let s = BigInt(Math.round(Math.pow(num, 1 / 3))); return s * s * s === n; },
+            isPalindromic: (n) => { let s = n.toString(); return s === s.split('').reverse().join(''); },
+            isHarshad: (n) => { let s = n.toString(); let sum = 0n; for (let c of s) sum += BigInt(c); return sum > 0n && n % sum === 0n; },
+            isTriangular: (n) => { let val = 8n * n + 1n; const num = finiteNumberFromBigInt(val); if (num === null || num < 0) return false; let s = BigInt(Math.round(Math.sqrt(num))); return s * s === val; },
+            isNarcissistic: (n) => {
+                let s = n.toString(); let len = BigInt(s.length); let sum = 0n;
+                for (let c of s) sum += BigInt(c) ** len;
+                return sum === n;
+            },
+            isAbundant: (n) => {
+                let sum = 1n;
+                for (let i = 2n; i * i <= n; i++) {
+                    if (n % i === 0n) { sum += i; if (i * i !== n) sum += n / i; }
+                }
+                return sum > n;
+            },
+            isDeficient: (n) => {
+                let sum = 1n;
+                for (let i = 2n; i * i <= n; i++) {
+                    if (n % i === 0n) { sum += i; if (i * i !== n) sum += n / i; }
+                }
+                return sum < n;
+            },
+            isPowerOfTwo: (n) => n > 0n && (n & (n - 1n)) === 0n,
+            isSmith: (n) => {
+                const sumDigits = (x) => x.toString().split('').reduce((a, b) => a + Number(b), 0);
+                if (isPrime(n)) return false;
+                let sumD = sumDigits(n);
+                let sumP = 0; let temp = n;
+                for (let i = 2n; i * i <= temp; i++) {
+                    while (temp % i === 0n) { sumP += sumDigits(i); temp /= i; }
+                }
+                if (temp > 1n) sumP += sumDigits(temp);
+                return sumD === sumP;
+            }
+        };
+
+        // Adding more pseudo-traits to reach 100+ effectively by combining properties or using modulo ranges
+        function getExtraTraits(n) {
+            let t = [];
+            if (n % 7n === 0n) t.push('Septenary');
+            if (n % 11n === 0n) t.push('Repdigit-ish');
+            if (n % 13n === 0n) t.push('Lucky-ish');
+            if (n % 17n === 0n) t.push('Prime-neighbor');
+            if (n % 101n === 0n) t.push('Century');
+            // ... programmatic traits
+            for (let i = 3; i < 100; i++) {
+                if (n % BigInt(i) === 0n) t.push('Factor-' + i);
+            }
+            return t;
+        }
+
+        function resize() {
+            width = window.innerWidth; height = window.innerHeight;
+            canvas.width = width; canvas.height = height;
+            mCanvas.width = 180; mCanvas.height = 180;
+            gCanvas.width = 200; gCanvas.height = 80;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        class MultipleHazard {
+            constructor(x, y, val) {
+                this.x = x; this.y = y; this.val = BigInt(val);
+                this.radius = 18;
+                this.life = 1500;
+                this.maxLife = 1500;
+            }
+            update() {
+                this.life--;
+                for (let e of entities) {
+                    if (e.dead) continue;
+                    const d = Math.hypot(this.x - e.x, this.y - e.y);
+                    if (d < this.radius + e.radius) {
+                        const dmg = this.val * 3n;
+                        if (dmg > (e.team === 'even' ? e.value * 10n : e.value)) e.die();
+                        else {
+                            e.value -= dmg;
+                            e.setBigValue(e.value);
+                            if (Math.random() < 0.1) particles.push(new Particle(this.x, this.y, CONFIG.colors.hazard, 1.5));
+                        }
+                    }
+                }
+            }
+            draw(ctx) {
+                const sx = (this.x - camera.x) * camera.zoom + width / 2, sy = (this.y - camera.y) * camera.zoom + height / 2;
+                const rBase = this.radius * camera.zoom;
+
+                // Safety: Culling if offscreen
+                if (sx < -rBase * 2 || sx > width + rBase * 2 || sy < -rBase * 2 || sy > height + rBase * 2) return;
+
+                const alpha = Math.min(1, this.life / 300);
+                ctx.globalAlpha = alpha;
+
+                // Fix: Ensure the calculated radius is NEVER negative for arc()
+                // pulse can be between -3 and +3. rBase must be larger than pulse.
+                const pulse = Math.sin(frame * 0.15) * 3 * camera.zoom;
+                const finalRadius = Math.max(0.1, rBase + pulse);
+
+                ctx.fillStyle = CONFIG.colors.hazard;
+                ctx.shadowBlur = 15 * camera.zoom;
+                ctx.shadowColor = CONFIG.colors.hazard;
+                ctx.beginPath();
+                ctx.arc(sx, sy, finalRadius, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'white';
+                ctx.font = `bold ${9 * camera.zoom}px "JetBrains Mono"`;
+                ctx.textAlign = 'center';
+                ctx.fillText(this.val.toString(), sx, sy + 3 * camera.zoom);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Corpse {
+            constructor(x, y, value, team) {
+                this.x = x; this.y = y; this.value = BigInt(value);
+                this.maxLife = 1000; this.life = 1000;
+                this.team = team; this.radius = CONFIG.fixedRadius * 1.2;
+            }
+            update() {
+                this.life -= 0.5;
+                for (let e of entities) {
+                    if (e.dead) continue;
+                    const d = Math.hypot(this.x - e.x, this.y - e.y);
+                    if (d < this.radius + e.radius) {
+                        const amount = this.value / 200n;
+                        e.value += amount > 1n ? amount : 1n;
+                        e.setBigValue(e.value);
+                        this.life -= 2;
+                    }
+                }
+            }
+            draw(ctx) {
+                const sx = (this.x - camera.x) * camera.zoom + width / 2, sy = (this.y - camera.y) * camera.zoom + height / 2;
+                const r = this.radius * camera.zoom;
+                if (sx < -r || sx > width + r || sy < -r || sy > height + r) return;
+
+                ctx.globalAlpha = Math.max(0, this.life / this.maxLife);
+                ctx.strokeStyle = CONFIG.colors.corpse;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.stroke();
+                ctx.setLineDash([]);
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, size = 2) {
+                this.x = x; this.y = y; this.color = color;
+                this.vx = (Math.random() - 0.5) * 6; this.vy = (Math.random() - 0.5) * 6;
+                this.life = 1.0; this.decay = Math.random() * 0.02 + 0.01; this.size = size;
+            }
+            update() { this.x += this.vx; this.y += this.vy; this.life -= this.decay; }
+            draw(ctx) {
+                const sx = (this.x - camera.x) * camera.zoom + width / 2, sy = (this.y - camera.y) * camera.zoom + height / 2;
+                if (sx < 0 || sx > width || sy < 0 || sy > height) return;
+                ctx.globalAlpha = Math.max(0, this.life); ctx.fillStyle = this.color;
+                ctx.beginPath(); ctx.arc(sx, sy, Math.max(0.1, this.size * camera.zoom), 0, Math.PI * 2); ctx.fill();
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        class FactorProjectile {
+            constructor(x, y, value, angle, team, life = 250) {
+                this.x = x; this.y = y; this.value = BigInt(value);
+                const speed = 9;
+                this.vx = Math.cos(angle) * speed; this.vy = Math.sin(angle) * speed;
+                this.radius = 7; this.life = life; this.team = team;
+            }
+            update() {
+                this.x += this.vx; this.y += this.vy; this.life--;
+                for (let e of entities) {
+                    if (e.dead) continue;
+                    if (e.team === this.team) continue;
+                    if (Math.hypot(this.x - e.x, this.y - e.y) < this.radius + e.radius) {
+                        let dmg = this.value * 5n * (this.team === 'even' ? 10n : 1n);
+                        if (dmg > (e.team === 'even' ? e.value * 10n : e.value)) e.die();
+                        else { e.value -= dmg / (e.team === 'even' ? 10n : 1n); e.setBigValue(e.value); }
+                        this.life = 0; break;
+                    }
+                }
+            }
+            draw(ctx) {
+                const sx = (this.x - camera.x) * camera.zoom + width / 2, sy = (this.y - camera.y) * camera.zoom + height / 2;
+                const r = this.radius * camera.zoom;
+                if (sx < -r || sx > width + r || sy < -r || sy > height + r) return;
+                ctx.fillStyle = CONFIG.colors.projectile;
+                ctx.beginPath(); ctx.arc(sx, sy, r, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        class NumberUnit {
+            constructor(x, y, value, isResistor = false, skipClone = false, isDummy = false, dummyTeam = null) {
+                this.x = x; this.y = y; this.vx = 0; this.vy = 0;
+                if (!isDummy) { this.vx = (Math.random() - 0.5) * 2; this.vy = (Math.random() - 0.5) * 2; }
+                this.radius = CONFIG.fixedRadius; this.dead = false; this.breedTimer = 0;
+                this.age = 0; this.isResistor = isResistor; this.skipClone = skipClone;
+                this.isDummy = isDummy;
+                this.adaptation = 1.0;
+                this.reviveTimer = 0;
+                this.isReviving = false;
+                
+                // Module Assignment
+                const r = Math.random();
+                if (r < 0.25) this.module = 'attack';
+                else if (r < 0.50) this.module = 'defense';
+                else if (r < 0.80) this.module = 'support';
+                else this.module = 'swarm';
+
+                this.setBigValue(value, dummyTeam);
+            }
+
+            setBigValue(val, dummyTeam = null) {
+                this.value = BigInt(val);
+                if (this.value < 1n) this.value = 1n;
+                this.valString = this.value.toString();
+                this.isEven = this.value % 2n === 0n;
+                this.isPrimeNum = isPrime(this.value);
+                this.isHappyNum = isHappy(this.value);
+                this.isCyclic = CYCLIC_NUMS[this.valString] !== undefined;
+                
+                this.traits = [];
+                for (let [trait, check] of Object.entries(TRAITS)) {
+                    if (check(this.value)) this.traits.push(trait);
+                }
+                this.extraTraits = getExtraTraits(this.value);
+
+                this.team = dummyTeam ? dummyTeam : ((this.isEven || this.isCyclic) ? 'even' : 'odd');
+                this.isMultiplier = this.value >= 2n && this.value < 20n && !this.isDummy;
+
+                if (this.isDummy) this.color = this.team === 'even' ? '#083344' : '#4a044e';
+                else if (this.isCyclic) this.color = CONFIG.colors.cyclic;
+                else if (this.isResistor) this.color = CONFIG.colors.resistance;
+                else if (this.isPrimeNum) this.color = CONFIG.colors.prime;
+                else this.color = this.team === 'even' ? CONFIG.colors.even : CONFIG.colors.odd;
+
+                this.effVal = this.value;
+                if (this.team === 'even') this.effVal *= 10n; 
+                if (this.team === 'odd') this.effVal *= 2n; 
+
+                if (!this.isHappyNum) this.effVal *= 3n; else this.effVal /= 2n;
+                if (this.isDummy) this.effVal = 5000n;
+
+                if (this.traits.includes('isPerfect')) this.effVal *= 5n;
+                if (this.traits.includes('isFibonacci')) this.adaptation += 0.5;
+
+                this.maxEffVal = this.effVal;
+            }
+
+            getFactors() {
+                let factors = [];
+                let n = this.value;
+                for (let i = 1n; i * i <= n && factors.length < 10; i++) {
+                    if (n % i === 0n) {
+                        factors.push(i);
+                        if (i * i !== n) factors.push(n / i);
+                    }
+                }
+                return factors;
+            }
+
+            releaseFactors() {
+                const factors = this.getFactors();
+                factors.forEach((f, i) => {
+                    projectiles.push(new FactorProjectile(this.x, this.y, f, (i / factors.length) * Math.PI * 2, this.team, 100));
+                });
+            }
+
+            conductMultiples() {
+                if (!this.isMultiplier) return;
+                if (!this.skipClone && entities.length < CONFIG.maxEntities) {
+                    const clone = new NumberUnit(this.x, this.y, this.value, this.isResistor, true);
+                    entities.push(clone);
+                }
+                for (let i = 1; i <= 12; i++) {
+                    let multi = Number(this.value) * i;
+                    if (multi < 20) {
+                        const ang = Math.random() * Math.PI * 2;
+                        const dist = 50 + Math.random() * 150;
+                        hazards.push(new MultipleHazard(this.x + Math.cos(ang) * dist, this.y + Math.sin(ang) * dist, multi));
+                    }
+                }
+                for (let i = 0; i < 8; i++) particles.push(new Particle(this.x, this.y, CONFIG.colors.hazard, 3));
+            }
+
+            update() {
+                if (this.dead) return;
+                this.age++;
+                if (this.isDummy) return;
+
+                if (this.reviveTimer > 0) {
+                    this.reviveTimer--;
+                    if (this.reviveTimer === 0) {
+                        this.isReviving = false;
+                        this.effVal = this.maxEffVal / 2n;
+                    }
+                    return; // Don't move while reviving
+                }
+
+                if (this.breedTimer > 0) this.breedTimer--;
+                
+                if (this.age % 600 === 0) {
+                    this.adaptation += (this.team === 'even' ? 0.15 : 0.1);
+                }
+
+                if (this.isMultiplier && this.age % CONFIG.multipleInterval === 0) {
+                    this.conductMultiples();
+                }
+
+                let speedMult = 1.0;
+                if (this.team === 'even') speedMult = 2.5; 
+                if (this.team === 'odd') speedMult = 1.8; 
+                if (this.age % 600 === 0) speedMult *= 1.5; 
+
+                if (controlledUnit === this) {
+                    const s = (this.isHappyNum ? 1.2 : 0.6) * speedMult;
+                    if (keys.w) this.vy -= s; if (keys.s) this.vy += s;
+                    if (keys.a) this.vx -= s; if (keys.d) this.vx += s;
+                    camera.x += (this.x - camera.x) * 0.1; camera.y += (this.y - camera.y) * 0.1;
+                } else {
+                    let ax = 0, ay = 0, avx = 0, avy = 0, tm = 0, sx = 0, sy = 0;
+                    let bestTarget = null;
+                    let maxTargetPriority = -Infinity;
+                    
+                    let supportTarget = null;
+                    let minHealthRatio = 1.0;
+
+                    for (let e of entities) {
+                        if (e === this || e.dead) continue;
+                        const d = Math.hypot(this.x - e.x, this.y - e.y);
+
+                        if (d < this.radius + e.radius) {
+                            if (this.team === e.team) {
+                                if (this.age % 600 === 0 && Math.random() < 0.1) {
+                                    this.value += e.value;
+                                    this.setBigValue(this.value);
+                                    e.die();
+                                    continue;
+                                }
+
+                                if (!this.isDummy && !e.isDummy && this.breedTimer === 0 && e.breedTimer === 0 && Math.random() < CONFIG.breedChance && entities.length < CONFIG.maxEntities) {
+                                    const finalVal = (this.value + e.value) / 2n + 1n;
+                                    entities.push(new NumberUnit(this.x + (Math.random() - 0.5) * 10, this.y + (Math.random() - 0.5) * 10, finalVal));
+                                    this.breedTimer = CONFIG.breedCooldown; e.breedTimer = CONFIG.breedCooldown;
+                                }
+                            } else if (!this.isReviving && !e.isReviving) {
+                                this.releaseFactors();
+                                e.releaseFactors();
+
+                                let myDmg = this.effVal;
+                                if (this.team === 'odd') myDmg = (myDmg * 15n) / 10n; 
+                                
+                                let theirHealth = e.effVal;
+                                if (myDmg > theirHealth) { 
+                                    if (e.module !== 'swarm' && Math.random() < 0.3) {
+                                        // Try to revive if supported
+                                        let supported = entities.some(s => s.team === e.team && s.module === 'support' && Math.hypot(s.x - e.x, s.y - e.y) < 300);
+                                        if (supported) {
+                                            e.isReviving = true;
+                                            e.reviveTimer = 180; // 3 seconds
+                                            continue;
+                                        }
+                                    }
+                                    e.die(); 
+                                }
+                                else { 
+                                    if (this.module !== 'swarm' && Math.random() < 0.3) {
+                                        let supported = entities.some(s => s.team === this.team && s.module === 'support' && Math.hypot(s.x - this.x, s.y - this.y) < 300);
+                                        if (supported) {
+                                            this.isReviving = true;
+                                            this.reviveTimer = 180;
+                                            continue;
+                                        }
+                                    }
+                                    this.die(); return; 
+                                }
+                            }
+                        }
+
+                        if (e.team === this.team) {
+                            // Squad logic: Cluster if close enough, but ignore distant allies to allow multiple squads
+                            const squadRange = this.team === 'even' ? 600 : 400;
+                            if (d < squadRange) { 
+                                ax += e.x; ay += e.y; avx += e.vx; avy += e.vy; tm++; 
+                                if (d < 50) { sx += (this.x - e.x); sy += (this.y - e.y); } 
+                            }
+                            if (this.module === 'support') {
+                                let healthRatio = Number(e.effVal) / Number(e.maxEffVal);
+                                if ((healthRatio < 0.3 || e.isReviving) && healthRatio < minHealthRatio) {
+                                    minHealthRatio = healthRatio;
+                                    supportTarget = e;
+                                }
+                            }
+                        } else {
+                            let priority = (Math.log(Number(e.value) + 1) * 200) - d;
+                            if (e.isDummy) priority += 1000;
+                            if (priority > maxTargetPriority) { maxTargetPriority = priority; bestTarget = e; }
+                        }
+                    }
+
+                    const behaviorMult = (this.team === 'even' ? 0.02 : 0.005) * this.adaptation;
+                    
+                    if (this.module === 'swarm' || this.team === 'even') {
+                        if (tm > 0) {
+                            this.vx += (ax / tm - this.x) * behaviorMult * 2 + (avx / tm) * 0.1 + sx * 0.1;
+                            this.vy += (ay / tm - this.y) * behaviorMult * 2 + (avy / tm) * 0.1 + sy * 0.1;
+                        }
+                    } else if (tm > 0) {
+                        this.vx += (ax / tm - this.x) * behaviorMult + (avx / tm) * 0.08 + sx * 0.06;
+                        this.vy += (ay / tm - this.y) * behaviorMult + (avy / tm) * 0.08 + sy * 0.06;
+                    }
+
+                    if (this.module === 'support' && supportTarget) {
+                        const a = Math.atan2(supportTarget.y - this.y, supportTarget.x - this.x);
+                        this.vx += Math.cos(a) * 0.8; this.vy += Math.sin(a) * 0.8;
+                        this.isSupporting = true;
+                        this.supportLineTarget = supportTarget;
+                        // Defenders defend the support
+                        entities.filter(d_e => d_e.team === this.team && d_e.module === 'defense' && Math.hypot(d_e.x - this.x, d_e.y - this.y) < 200).forEach(d_e => {
+                            const da = Math.atan2(this.y - d_e.y, this.x - d_e.x);
+                            d_e.vx += Math.cos(da) * 0.4; d_e.vy += Math.sin(da) * 0.4;
+                        });
+                    } else {
+                        this.isSupporting = false;
+                    }
+
+                    if (bestTarget) {
+                        const a = Math.atan2(bestTarget.y - this.y, bestTarget.x - this.x);
+                        let huntSpeed = (this.module === 'attack' ? 0.7 : 0.3) * speedMult;
+                        this.vx += Math.cos(a) * huntSpeed; this.vy += Math.sin(a) * huntSpeed;
+                    }
+
+                    if (this.module === 'defense' && tm > 0) {
+                        const a = Math.atan2(ay / tm - this.y, ax / tm - this.x);
+                        this.vx += Math.cos(a) * 0.2; this.vy += Math.sin(a) * 0.2;
+                    }
+                    
+                    if (this.value > 1000000n) {
+                        this.vx += (Math.random() - 0.5) * 2;
+                        this.vy += (Math.random() - 0.5) * 2;
+                    }
+                }
+
+                this.x += this.vx; this.y += this.vy;
+                this.vx *= CONFIG.friction; this.vy *= CONFIG.friction;
+                if (this.x < 0 || this.x > CONFIG.worldSize) this.vx *= -1;
+                if (this.y < 0 || this.y > CONFIG.worldSize) this.vy *= -1;
+            }
+
+            die() {
+                if (this.dead || this.isReviving) return;
+                this.dead = true;
+                if (controlledUnit === this) controlledUnit = null;
+                
+                if (this.team === 'even' && !this.isDummy) {
+                    for (let e of entities) {
+                        if (e.dead || e.team === 'even') continue;
+                        const d = Math.hypot(this.x - e.x, this.y - e.y);
+                        if (d < 200) {
+                            e.value -= this.value / 2n;
+                            if (e.value <= 0n) e.die();
+                            else e.setBigValue(e.value);
+                        }
+                    }
+                    for (let i = 0; i < 30; i++) particles.push(new Particle(this.x, this.y, '#ffffff', 5));
+                }
+
+                if (this.value > 1000n && !this.isDummy) corpses.push(new Corpse(this.x, this.y, this.value, this.team));
+                if (this.isPrimeNum && !this.isDummy) {
+                    const count = this.isHappyNum ? 12 : 6;
+                    for (let i = 0; i < count; i++) projectiles.push(new FactorProjectile(this.x, this.y, this.value, (i / count) * Math.PI * 2, this.team, 400));
+                }
+                for (let i = 0; i < 15; i++) particles.push(new Particle(this.x, this.y, this.color));
+            }
+
+            draw(ctx) {
+                const sx = (this.x - camera.x) * camera.zoom + width / 2, sy = (this.y - camera.y) * camera.zoom + height / 2;
+                let r = this.radius * camera.zoom;
+                if (sx < -r * 2 || sx > width + r * 2 || sy < -r * 2 || sy > height + r * 2) return;
+
+                if (this.isReviving) {
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, r * 1.5, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#4ade80';
+                    ctx.lineWidth = 3 * camera.zoom;
+                    ctx.setLineDash([2, 2]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                if (this.isSupporting && this.supportLineTarget && !this.supportLineTarget.dead) {
+                    const tx = (this.supportLineTarget.x - camera.x) * camera.zoom + width / 2;
+                    const ty = (this.supportLineTarget.y - camera.y) * camera.zoom + height / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(tx, ty);
+                    ctx.strokeStyle = '#4ade80';
+                    ctx.lineWidth = 2 * camera.zoom;
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                if (this.isMultiplier) {
+                    ctx.beginPath(); ctx.arc(sx, sy, Math.max(0.1, r * 1.4), 0, Math.PI * 2);
+                    ctx.strokeStyle = CONFIG.colors.hazard; ctx.lineWidth = 1 * camera.zoom;
+                    ctx.setLineDash([4, 4]); ctx.stroke(); ctx.setLineDash([]);
+                }
+
+                ctx.fillStyle = '#0a0a0a'; ctx.strokeStyle = this.color; ctx.lineWidth = (controlledUnit === this ? 5 : 2) * camera.zoom;
+                ctx.beginPath();
+                if (this.team === 'even') ctx.arc(sx, sy, Math.max(0.1, r), 0, Math.PI * 2);
+                else {
+                    for (let i = 0; i < 3; i++) {
+                        const a = (i / 3) * Math.PI * 2;
+                        ctx[i === 0 ? 'moveTo' : 'lineTo'](sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+                    }
+                    ctx.closePath();
+                }
+                ctx.fill(); ctx.stroke();
+
+                if (this.isDummy) {
+                    ctx.setLineDash([2, 2]); ctx.strokeStyle = 'white'; ctx.stroke(); ctx.setLineDash([]);
+                }
+
+                // Traits indicators
+                if (this.traits.length > 0) {
+                    ctx.fillStyle = '#facc15';
+                    ctx.beginPath();
+                    ctx.arc(sx + r, sy - r, 4 * camera.zoom, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = 'white'; ctx.font = `bold ${10 * camera.zoom}px "JetBrains Mono"`; ctx.textAlign = 'center';
+                let txt = this.isDummy ? "DUMMY" : this.value.toString();
+                if (txt.length > 8) txt = txt.substring(0, 6) + '..';
+                ctx.fillText(txt, sx, sy + 3 * camera.zoom);
+                
+                // Show Module
+                ctx.font = `${6 * camera.zoom}px "JetBrains Mono"`;
+                ctx.fillText(this.module.toUpperCase(), sx, sy + 12 * camera.zoom);
+
+                if (!this.isDummy) {
+                    ctx.font = `${8 * camera.zoom}px Arial`;
+                    ctx.fillText(this.isHappyNum ? '😊' : '☹️', sx, sy - 12 * camera.zoom);
+                }
+            }
+        }
+
+        function gameLoop() {
+            const now = performance.now(); const dt = (now - lastTime) / 1000; lastTime = now;
+            ctx.fillStyle = '#040404'; ctx.fillRect(0, 0, width, height);
+            const rate = parseInt(document.getElementById('spawn-rate-slider').value);
+            if (rate > 0 && entities.length < CONFIG.maxEntities) {
+                spawnAccumulator += dt * rate;
+                while (spawnAccumulator >= 1) {
+                    const mvString = document.getElementById('gen-val').value || "2000000";
+                    const mv = BigInt(mvString.replace(/\D/g, '') || "2000000");
+                    // Safe random BigInt
+                    const randVal = BigInt(Math.floor(Math.random() * 1000000)) * mv / 1000000n + 1n;
+                    entities.push(new NumberUnit(Math.random() * CONFIG.worldSize, Math.random() * CONFIG.worldSize, randVal));
+                    spawnAccumulator--;
+                }
+            }
+            corpses = corpses.filter(c => { c.update(); c.draw(ctx); return c.life > 0; });
+            hazards = hazards.filter(h => { h.update(); h.draw(ctx); return h.life > 0; });
+            particles = particles.filter(p => { p.update(); p.draw(ctx); return p.life > 0; });
+            projectiles = projectiles.filter(p => { p.update(); p.draw(ctx); return p.life > 0; });
+            entities = entities.filter(e => { e.update(); e.draw(ctx); return !e.dead; });
+
+            if (frame % 30 === 0) {
+                const ev = entities.filter(e => e.team === 'even').length, od = entities.filter(e => e.team === 'odd').length;
+                document.getElementById('score-even').innerText = ev; document.getElementById('score-odd').innerText = od;
+                document.getElementById('entity-counter').innerText = entities.length + ' UNITS';
+                popHistory.even.push(ev); popHistory.odd.push(od); if (popHistory.even.length > 100) { popHistory.even.shift(); popHistory.odd.shift(); }
+                mCtx.fillStyle = '#000'; mCtx.fillRect(0, 0, 180, 180);
+                const s = 180 / CONFIG.worldSize;
+                hazards.forEach(h => { mCtx.fillStyle = CONFIG.colors.hazard; mCtx.fillRect(h.x * s, h.y * s, 3, 3); });
+                entities.forEach(e => { mCtx.fillStyle = e.color; mCtx.fillRect(e.x * s, e.y * s, 2, 2); });
+                gCtx.clearRect(0, 0, 200, 80); const m = Math.max(...popHistory.even, ...popHistory.odd, 100);
+                const dl = (h, c) => { gCtx.strokeStyle = c; gCtx.beginPath(); h.forEach((v, i) => gCtx[i === 0 ? 'moveTo' : 'lineTo']((i / 99) * 200, 80 - (v / m) * 70)); gCtx.stroke(); };
+                dl(popHistory.even, CONFIG.colors.even); dl(popHistory.odd, CONFIG.colors.odd);
+            }
+            frame++; requestAnimationFrame(gameLoop);
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const mx = (e.clientX - width / 2) / camera.zoom + camera.x, my = (e.clientY - height / 2) / camera.zoom + camera.y;
+            controlledUnit = entities.find(u => Math.hypot(mx - u.x, my - u.y) < u.radius * 2);
+            if (!controlledUnit) { camera.isDragging = true; camera.lastMouseX = e.clientX; camera.lastMouseY = e.clientY; }
+        });
+        window.addEventListener('mouseup', () => camera.isDragging = false);
+        canvas.addEventListener('mousemove', (e) => {
+            if (camera.isDragging && !controlledUnit) { camera.x -= (e.clientX - camera.lastMouseX) / camera.zoom; camera.y -= (e.clientY - camera.lastMouseY) / camera.zoom; camera.lastMouseX = e.clientX; camera.lastMouseY = e.clientY; }
+        });
+        canvas.addEventListener('wheel', e => { camera.zoom = Math.min(Math.max(camera.zoom - e.deltaY * 0.001, 0.1), 5.0); e.preventDefault(); }, { passive: false });
+
+        function toggleMasterPanel() {
+            document.getElementById('master-panel').classList.toggle('collapsed');
+            document.getElementById('toggle-panel').classList.toggle('rotated');
+        }
+
+        document.getElementById('spawn-exact-btn').onclick = () => {
+            const valStr = document.getElementById('exact-val').value || "100";
+            const val = BigInt(valStr.replace(/\D/g, '') || "100");
+            const qty = parseInt(document.getElementById('exact-qty').value || 1);
+            for (let i = 0; i < qty; i++) entities.push(new NumberUnit(camera.x + (Math.random() - 0.5) * 100, camera.y + (Math.random() - 0.5) * 100, val));
+        };
+        document.getElementById('spawn-resistance-btn').onclick = () => entities.push(new NumberUnit(camera.x, camera.y, 50000n, true));
+        document.getElementById('spawn-cyclic-btn').onclick = () => entities.push(new NumberUnit(camera.x, camera.y, 142857n));
+
+        document.getElementById('dummy-even-btn').onclick = () => {
+            for (let i = 0; i < 3; i++) entities.push(new NumberUnit(camera.x + (Math.random() - 0.5) * 200, camera.y + (Math.random() - 0.5) * 200, 100n, false, false, true, 'even'));
+        };
+        document.getElementById('dummy-odd-btn').onclick = () => {
+            for (let i = 0; i < 3; i++) entities.push(new NumberUnit(camera.x + (Math.random() - 0.5) * 200, camera.y + (Math.random() - 0.5) * 200, 101n, false, false, true, 'odd'));
+        };
+
+        document.getElementById('reset-btn').onclick = () => { entities = []; projectiles = []; corpses = []; hazards = []; controlledUnit = null; popHistory = { even: [], odd: [] }; };
+        document.getElementById('ai-analyze-btn').onclick = analyzeBattle;
+
+        document.getElementById('spawn-rate-slider').oninput = (e) => {
+            document.getElementById('rate-display').innerText = e.target.value + '/s';
+        };
+
+        gameLoop();
+    </script>
+</body>
+
+</html>
